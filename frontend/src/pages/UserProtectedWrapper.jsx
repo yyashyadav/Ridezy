@@ -15,6 +15,7 @@ const UserProtectedWrapper = ({children}) => {
     useEffect(() => {
         const verifyToken = async () => {
             if (!token) {
+                console.log('No token found, redirecting to login')
                 navigate('/login')
                 return
             }
@@ -26,22 +27,20 @@ const UserProtectedWrapper = ({children}) => {
                     }
                 })
 
-                if (response.status === 200) {
+                if (response.status === 200 && response.data && response.data._id) {
                     setUser(response.data)
                     joinUser(response.data._id)
                     setIsLoading(false)
+                } else {
+                    console.error('Invalid response format:', response)
+                    localStorage.removeItem('token')
+                    navigate('/login')
                 }
             } catch (err) {
                 console.error('Authentication error:', err)
-                // Only clear token and redirect if it's an authentication error
-                if (err.response?.status === 401 || err.response?.status === 403) {
-                    localStorage.removeItem('token')
-                    localStorage.removeItem('user')
-                    navigate('/login')
-                } else {
-                    setError('Failed to verify authentication. Please try again.')
-                    setIsLoading(false)
-                }
+                // Clear token and redirect for any error
+                localStorage.removeItem('token')
+                navigate('/login')
             }
         }
 

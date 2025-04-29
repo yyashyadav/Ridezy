@@ -55,7 +55,7 @@ const App = () => {
                 <Profile />
               </UserProtectedWrapper>
             } />
-            <Route path='/captain-home'element={
+            <Route path='/captain-home' element={
               <CaptainProtectWrapper>
                 <CaptainHome/>
               </CaptainProtectWrapper>
@@ -67,9 +67,9 @@ const App = () => {
             }/>
             <Route path='/captain-profile' element={
               <CaptainProtectWrapper>
-                <CaptainProfile />
+                <CaptainProfile/>
               </CaptainProtectWrapper>
-            } />
+            }/>
         </Routes>
       </div>
     </LoadScript>

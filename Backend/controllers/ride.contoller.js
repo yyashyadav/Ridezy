@@ -12,12 +12,16 @@ const createRide = async (req, res) => {
         return res.status(400).json({ errors: errors.array() });
     }
 
-    const { userId, pickup, destination, vehicleType, scheduledTime } = req.body;
+    const { pickup, destination, vehicleType, scheduledTime } = req.body;
 
     try {
         // Get coordinates for pickup and destination
         const pickupCoordinates = await mapService.getAddressCoordinate(pickup);
         const destinationCoordinates = await mapService.getAddressCoordinate(destination);
+
+        if (!pickupCoordinates || !destinationCoordinates) {
+            return res.status(400).json({ message: 'Invalid pickup or destination address' });
+        }
 
         const rideData = {
             user: req.user._id,
@@ -30,26 +34,32 @@ const createRide = async (req, res) => {
             scheduledTime: scheduledTime ? new Date(scheduledTime) : null
         };
 
+        console.log('Creating ride with data:', rideData); // Debug log
+
         const ride = await rideService.createRide(rideData);
+        
+        // Send response before notifying captains
         res.status(201).json(ride);
 
+        // Find and notify nearby captains
         const captainsInRadius = await mapService.getCaptainsInTheRadius(pickupCoordinates.ltd, pickupCoordinates.lng, 100);
         console.log("Captains in radius:", captainsInRadius);
-        
-        ride.otp="";
 
-        const rideWithUser = await rideModel.findOne({ _id: ride._id }).populate('user');
-
-        captainsInRadius.map(captain=>{
-            console.log(captain,ride);
-            sendMessageToSocketId(captain.socketId,{
-                event:'new-ride',
-                data:rideWithUser
-            })
-        })
+        if (ride) {
+            const rideWithUser = await rideModel.findOne({ _id: ride._id }).populate('user');
+            
+            captainsInRadius.forEach(captain => {
+                if (captain.socketId) {
+                    sendMessageToSocketId(captain.socketId, {
+                        event: 'new-ride',
+                        data: rideWithUser
+                    });
+                }
+            });
+        }
 
     } catch (err) {
-        console.log(err);
+        console.error('Error creating ride:', err);
         return res.status(500).json({ message: err.message });
     }
 };
@@ -191,29 +201,6 @@ const getRideHistory = async (req, res) => {
     }
 };
 
-const getCaptainRideHistory = async (req, res) => {
-    try {
-        const captainId = req.captain._id;
-        
-        // Get all rides (completed, cancelled, ongoing) sorted by booking time (newest first)
-        const rides = await rideModel.find({
-            captain: captainId,
-            status: { $in: ['completed', 'cancelled', 'ongoing'] }
-        })
-        .sort({ bookingTime: -1 })
-        .populate({
-            path: 'user',
-            select: 'fullname phone'
-        })
-        .limit(20); // Limit to 20 most recent rides
-        
-        res.status(200).json({ rides });
-    } catch (error) {
-        console.error('Error getting captain ride history:', error);
-        res.status(500).json({ message: 'Error getting ride history' });
-    }
-};
-
 module.exports = {
     createRide,
     getFare,
@@ -221,6 +208,5 @@ module.exports = {
     startRide,
     endRide,
     getActiveRideForUser,
-    getRideHistory,
-    getCaptainRideHistory
+    getRideHistory
 };

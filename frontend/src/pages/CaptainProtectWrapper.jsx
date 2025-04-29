@@ -16,6 +16,7 @@ const CaptainProtectWrapper = ({
     useEffect(() => {
         if (!token) {
             navigate('/captain-login')
+            return
         }
 
         axios.get(`${import.meta.env.VITE_BASE_URL}/captains/profile`, {
@@ -31,14 +32,17 @@ const CaptainProtectWrapper = ({
             }
         })
             .catch(err => {
+                console.error('Authentication error:', err)
                 localStorage.removeItem('captainToken')
                 navigate('/captain-login')
             })
-    }, [ token ])
+    }, [ token, navigate, setCaptain, joinCaptain ])
 
     if (isLoading) {
         return (
-            <div>Loading...</div>
+            <div className="flex items-center justify-center min-h-screen">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+            </div>
         )
     }
 

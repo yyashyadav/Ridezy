@@ -46,21 +46,31 @@ function getOtp(num){
     return generateOtp(num);
 }
 
-module.exports.createRide=async({user,pickup,destination,vehicleType})=>{
-    if(!user||!pickup||!destination||!vehicleType){
-        throw new Error('All field are required');
+module.exports.createRide = async ({ user, pickup, destination, vehicleType, pickupAddress, destinationAddress, bookingTime, scheduledTime }) => {
+    if (!user || !pickup || !destination || !vehicleType || !pickupAddress || !destinationAddress) {
+        throw new Error('All fields are required');
     }
-    const fare=await this.getFare(pickup,destination);
-    // console.log(fare);
-    const ride=rideModel.create({
-        user,
-        pickup,
-        destination,
-        otp:getOtp(6),
-        fare:fare[vehicleType]
-    })
-    return ride;
-}
+
+    try {
+        const fare = await this.getFare(pickupAddress, destinationAddress);
+        const ride = await rideModel.create({
+            user,
+            pickup,
+            destination,
+            pickupAddress,
+            destinationAddress,
+            vehicleType,
+            otp: getOtp(6),
+            fare: fare[vehicleType],
+            bookingTime: bookingTime || new Date(),
+            scheduledTime
+        });
+        return ride;
+    } catch (error) {
+        console.error('Error in createRide service:', error);
+        throw error;
+    }
+};
 
 module.exports.confirmRide=async({rideId,captain})=>{
     if (!rideId) {

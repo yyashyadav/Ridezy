@@ -52,9 +52,9 @@ const UserProfile = () => {
                         Authorization: `Bearer ${token}`
                     }
                 });
-                // Sort rides by booking time (newest first)
+                // Sort rides by date (newest first)
                 const sortedRides = response.data.rides.sort((a, b) => 
-                    new Date(b.bookingTime) - new Date(a.bookingTime)
+                    new Date(b.createdAt) - new Date(a.createdAt)
                 );
                 setRideHistory(sortedRides || []);
             } catch (error) {
