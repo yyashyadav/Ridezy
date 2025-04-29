@@ -88,12 +88,27 @@ const confirmRide = async(req,res)=>{
 
     try{
         const ride = await rideService.confirmRide({ rideId, captain: req.captain });
+        
+        // Make sure we have the OTP
+        if (!ride.otp) {
+            console.error('OTP not found for ride:', ride._id);
+        }
+        
+        // Send OTP to user
         sendMessageToSocketId(ride.user.socketId, {
             event: 'ride-confirmed',
-            data: ride
-        })
+            data: {
+                ...ride.toObject(),
+                otp: ride.otp // Explicitly include OTP
+            }
+        });
+        
+        // Log for debugging
+        console.log('Sending ride confirmation with OTP:', ride.otp);
+        
         return res.status(200).json(ride);
     }catch(err){
+        console.error('Error confirming ride:', err);
         return res.status(500).json({message:err.message});
     }
 }
