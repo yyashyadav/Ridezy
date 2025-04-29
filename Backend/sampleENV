@@ -5,3 +5,8 @@ GOOGLE_MAPS_API= google_maps_api_key
 
 RAZORPAY_KEY_ID=your_razorpay_key_id
 RAZORPAY_KEY_SECRET=your_razorpay_key_secret
+
+CORS_ORIGIN= frontend_url
+CORS_METHODS=GET,POST,PUT,DELETE,OPTIONS
+CORS_ALLOWED_HEADERS=Content-Type,Authorization
+CORS_CREDENTIALS=true
