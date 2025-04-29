@@ -18,6 +18,14 @@ const rideSchema=new mongoose.Schema({
         type:String,
         required:true,
     },
+    pickupAddress: {
+        type: String,
+        required: true
+    },
+    destinationAddress: {
+        type: String,
+        required: true
+    },
     fare:{
         type:Number,
         required:true,
@@ -33,7 +41,13 @@ const rideSchema=new mongoose.Schema({
     distance:{
         type:Number,
     },
-
+    bookingTime: {
+        type: Date,
+        default: Date.now
+    },
+    scheduledTime: {
+        type: Date
+    },
     // now this made for payment 
     paymentId:{
         type:String,
@@ -49,6 +63,8 @@ const rideSchema=new mongoose.Schema({
         select:false,
         required:true
     }
-})
+}, {
+    timestamps: true
+});
 
 module.exports=mongoose.model('ride',rideSchema);

@@ -11,8 +11,12 @@ import UserProtectedWrapper from './pages/UserProtectedWrapper'
 import UserLogout from './pages/UserLogout'
 import CaptainHome from './pages/CaptainHome'
 import CaptainProtectWrapper from './pages/CaptainProtectWrapper'
+import CaptainLogout from './pages/CaptainLogout'
 import Riding from './pages/Riding'
 import CaptainRiding from './pages/CaptainRiding'
+import UserProfile from './pages/UserProfile'
+import Profile from './pages/Profile'
+import CaptainProfile from './pages/CaptainProfile'
 
 const App = () => {
 
@@ -41,11 +45,31 @@ const App = () => {
                 <UserLogout/>
               </UserProtectedWrapper>
             } />
+            <Route path='/user/profile' element={
+              <UserProtectedWrapper>
+                <UserProfile/>
+              </UserProtectedWrapper>
+            } />
+            <Route path='/profile' element={
+              <UserProtectedWrapper>
+                <Profile />
+              </UserProtectedWrapper>
+            } />
             <Route path='/captain-home'element={
               <CaptainProtectWrapper>
                 <CaptainHome/>
               </CaptainProtectWrapper>
             }/>
+            <Route path='/captain/logout' element={
+              <CaptainProtectWrapper>
+                <CaptainLogout/>
+              </CaptainProtectWrapper>
+            }/>
+            <Route path='/captain-profile' element={
+              <CaptainProtectWrapper>
+                <CaptainProfile />
+              </CaptainProtectWrapper>
+            } />
         </Routes>
       </div>
     </LoadScript>

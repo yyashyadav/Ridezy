@@ -8,10 +8,12 @@ const userSchema=new mongoose.Schema({
             type:String,
             required:true,
             minlength:[3,'First name must have length 3 characters'],
+            trim:true
         },
         lastname:{
             type:String,
             minlength:[3,'Last name must have length 3 characters'],
+            trim:true
         },
     },
     email:{
@@ -19,17 +21,29 @@ const userSchema=new mongoose.Schema({
         required:true,
         unique:true,
         minlength:[5,'Email must have atleast 5 characters'],
+        trim:true,
+        lowercase:true
     },
     password:{
         type:String,
         required:true,
         select:false,
     },
+    phone: {
+        type: String,
+        trim: true
+    },
+    profileImage: {
+        type: String,
+        default: null
+    },
     socketId:{
         type:String,
-    },
-
-})
+        default:null
+    }
+},{
+    timestamps:true
+});
 
 // now we define some method on user model 
 

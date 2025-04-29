@@ -10,9 +10,10 @@ import LookingForDriver from '../../components/LookingForDriver';
 import WaitingForDriver from '../../components/WaitingForDriver';
 import { SocketContext } from '../context/SocketContext';
 import { UserDataContext } from '../context/UserContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import LiveTracking from '../../components/LiveTracking';
 import { GoogleMap } from '@react-google-maps/api';
+import { getToken } from '../services/auth.service';
 
 const Home = () => {
 
@@ -202,7 +203,7 @@ const Home = () => {
     useEffect(() => {
         if (user && user._id) {
             // Fetch active rides for this user
-            axios.get(`${import.meta.env.VITE_BASE_URL}/rides/active/${user._id}`, {
+            axios.get(`${import.meta.env.VITE_BASE_URL}/rides/active`, {
                 headers: {
                     Authorization: `Bearer ${localStorage.getItem('token')}`
                 }
@@ -210,25 +211,90 @@ const Home = () => {
                 .then(response => {
                     if (response.data && response.data.ride) {
                         const ride = response.data.ride;
-                        setCurrentRide({
-                            _id: ride._id,
-                            pickup: {
-                                lat: parseFloat(ride.pickup.split(',')[0]),
-                                lng: parseFloat(ride.pickup.split(',')[1])
-                            },
-                            destination: {
-                                lat: parseFloat(ride.destination.split(',')[0]),
-                                lng: parseFloat(ride.destination.split(',')[1])
+                        
+                        // Parse and validate coordinates
+                        const pickupCoords = ride.pickup.split(',');
+                        const destinationCoords = ride.destination.split(',');
+                        
+                        // Check if we have valid coordinates
+                        if (pickupCoords.length === 2 && destinationCoords.length === 2) {
+                            const pickupLat = parseFloat(pickupCoords[0]);
+                            const pickupLng = parseFloat(pickupCoords[1]);
+                            const destLat = parseFloat(destinationCoords[0]);
+                            const destLng = parseFloat(destinationCoords[1]);
+                            
+                            // Validate that all coordinates are valid numbers
+                            if (!isNaN(pickupLat) && !isNaN(pickupLng) && 
+                                !isNaN(destLat) && !isNaN(destLng)) {
+                                
+                                setCurrentRide({
+                                    _id: ride._id,
+                                    pickup: {
+                                        lat: pickupLat,
+                                        lng: pickupLng,
+                                        address: ride.pickupAddress
+                                    },
+                                    destination: {
+                                        lat: destLat,
+                                        lng: destLng,
+                                        address: ride.destinationAddress
+                                    }
+                                });
+                                setShowLiveTracking(true);
+                            } else {
+                                console.error("Invalid coordinates in ride data:", ride);
                             }
-                        });
-                        setShowLiveTracking(true);
+                        } else {
+                            // If coordinates are not in the correct format, try to get them from the addresses
+                            const getCoordinates = async () => {
+                                try {
+                                    // Use backend service to get coordinates
+                                    const pickupResponse = await axios.get(
+                                        `${import.meta.env.VITE_BASE_URL}/maps/get-coordinates`, {
+                                            params: { address: ride.pickup },
+                                            headers: {
+                                                Authorization: `Bearer ${localStorage.getItem('token')}`
+                                            }
+                                        }
+                                    );
+                                    const destResponse = await axios.get(
+                                        `${import.meta.env.VITE_BASE_URL}/maps/get-coordinates`, {
+                                            params: { address: ride.destination },
+                                            headers: {
+                                                Authorization: `Bearer ${localStorage.getItem('token')}`
+                                            }
+                                        }
+                                    );
+
+                                    if (pickupResponse.data && destResponse.data) {
+                                        setCurrentRide({
+                                            _id: ride._id,
+                                            pickup: {
+                                                lat: pickupResponse.data.ltd,
+                                                lng: pickupResponse.data.lng,
+                                                address: ride.pickup
+                                            },
+                                            destination: {
+                                                lat: destResponse.data.ltd,
+                                                lng: destResponse.data.lng,
+                                                address: ride.destination
+                                            }
+                                        });
+                                        setShowLiveTracking(true);
+                                    } else {
+                                        console.error("Could not geocode addresses:", ride);
+                                    }
+                                } catch (error) {
+                                    console.error("Error geocoding addresses:", error);
+                                }
+                            };
+
+                            getCoordinates();
+                        }
                     }
                 })
                 .catch(error => {
-                    // Only log as error if it's not a 404 (no active ride)
-                    if (error.response?.status !== 404) {
-                        console.error("Error fetching active rides:", error);
-                    }
+                    console.error("Error fetching active ride:", error);
                 });
         }
     }, [user]);
@@ -256,6 +322,23 @@ const Home = () => {
 
     return (
         <div className='h-screen relative overflow-hidden'>
+            <div className='fixed p-4 top-0 flex items-center justify-between w-screen z-50'>
+                <img className='w-16' src="https://upload.wikimedia.org/wikipedia/commons/c/cc/Uber_logo_2018.png" alt="Uber Logo"/>
+                <div className="flex items-center space-x-3">
+                    <Link 
+                        to='/user/profile' 
+                        className='h-10 w-10 bg-white flex items-center justify-center rounded-full shadow-md hover:bg-gray-100 transition-colors'
+                    >
+                        <i className="text-xl ri-user-line"></i>
+                    </Link>
+                    <Link 
+                        to='/user/logout' 
+                        className='h-10 w-10 bg-white flex items-center justify-center rounded-full shadow-md hover:bg-gray-100 transition-colors'
+                    >
+                        <i className="text-xl ri-logout-box-r-line"></i>
+                    </Link>
+                </div>
+            </div>
             {/* Show live tracking if there's an active ride */}
             {showLiveTracking && currentRide && (
                 <div className="fixed inset-0 z-30 bg-white">

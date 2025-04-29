@@ -7,9 +7,10 @@ let io;
 function initializeSocket(server){
     io=socketIo(server,{
         cors:{
-            origin:"*",
-            methods:["GET","POST"],
-            credentials:true,
+            origin: "http://localhost:5173", // Frontend URL
+            methods: ["GET", "POST"],
+            credentials: true,
+            allowedHeaders: ["Content-Type", "Authorization"]
         },
     });
     io.on("connection",(socket)=>{

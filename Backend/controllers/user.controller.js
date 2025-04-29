@@ -1,12 +1,12 @@
-
 const userModel=require('../models/user.model');
 // from this we create the entry of user in the mongoose 
 const userService=require('../services/user.service');
 // this take the validation result 
 const {validationResult}=require('express-validator')
 const blackListTokenModel=require('../models/blacklistToken.model');
+
 // this is the logic for registering thte user 
-module.exports.registerUser=async(req,res,next)=>{
+const registerUser=async(req,res,next)=>{
     const errors=validationResult(req);
     if(!errors.isEmpty()){
         res.status(400).json({errors:errors.array()});
@@ -35,7 +35,7 @@ module.exports.registerUser=async(req,res,next)=>{
     })
 }
 
-module.exports.userLogin=async(req,res,next)=>{
+const userLogin=async(req,res,next)=>{
 
     // this is to handle the validation error 
     const errors=validationResult(req);
@@ -68,12 +68,12 @@ module.exports.userLogin=async(req,res,next)=>{
 }
 
 
-module.exports.getUserProfile=async(req,res,next)=>{
+const getUserProfile=async(req,res,next)=>{
    res.status(200).json(req.user);
 }
 
 
-module.exports.logoutUser = async (req, res, next) => {
+const logoutUser = async (req, res, next) => {
     res.clearCookie('token');
     const token = req.cookies.token || req.headers.authorization.split(' ')[ 1 ];
 
@@ -82,3 +82,69 @@ module.exports.logoutUser = async (req, res, next) => {
     res.status(200).json({ message: 'Logged out' });
 
 }
+
+const updateUserProfile = async (req, res) => {
+    try {
+        const { fullname, email, phone } = req.body;
+        const userId = req.user._id;
+
+        // Validate required fields
+        if (!fullname || !fullname.firstname) {
+            return res.status(400).json({
+                success: false,
+                message: 'First name is required'
+            });
+        }
+
+        // Build update object
+        const updateData = {
+            fullname: {
+                firstname: fullname.firstname,
+                lastname: fullname.lastname || ''
+            },
+            email,
+            phone
+        };
+
+        // If a new profile image was uploaded, add it to update data
+        if (req.file) {
+            updateData.profileImage = req.file.path;
+        }
+
+        // Update user profile
+        const updatedUser = await userModel.findByIdAndUpdate(
+            userId,
+            { $set: updateData },
+            { new: true, runValidators: true }
+        ).select('-password');
+
+        if (!updatedUser) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Profile updated successfully',
+            data: updatedUser
+        });
+
+    } catch (error) {
+        console.error('Profile update error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error updating profile',
+            error: error.message
+        });
+    }
+};
+
+module.exports = {
+    registerUser,
+    userLogin,
+    getUserProfile,
+    logoutUser,
+    updateUserProfile
+};

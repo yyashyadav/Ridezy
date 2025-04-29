@@ -1,45 +1,56 @@
 import React, { useContext, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { UserDataContext } from '../context/UserContext';
-import axios from 'axios';
+import { userLogin } from '../services/auth.service';
 
 const UserLogin = () => {
     //we use this for data handling in react calle two way binding 
 
     const [email,setEmail]=useState('');
     const [password,setPassword]=useState('');
+    const [error, setError] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
     // const [userData,setUserData]=useState({});
 
     const {user,setUser}=useContext(UserDataContext);
     const navigate=useNavigate();
 
-    const submitHandler=async(e)=>{
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        // console.log(email,password);
-       const userData={
-        email:email,
-        password:password
-       }
-        // console.log(userData);
-       const response=await axios.post(`${import.meta.env.VITE_BASE_URL}/users/login`,userData);
-       if(response.status==200){
-        const data=response.data;
-        // console.log(data);
-        setUser(data.user);
-        localStorage.setItem('token',data.token);
-        navigate('/home');
-       }
-        setEmail('');
-        setPassword('');
-    }
+        setError('');
+        setIsLoading(true);
+
+        try {
+            const data = await userLogin(email, password);
+            setUser(data.user);
+            navigate('/home');
+        } catch (err) {
+            setError(err.message || 'Login failed. Please try again.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleGuestLogin = async () => {
+        setError('');
+        setIsLoading(true);
+
+        try {
+            const data = await userLogin('testuser@gmail.com', 'testuser');
+            setUser(data.user);
+            navigate('/home');
+        } catch (err) {
+            setError('Guest login failed. Please try again.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
   return (
     <div className='p-7 h-screen flex flex-col justify-between'>
        <div>
        <img className='w-16 mb-10' src="https://upload.wikimedia.org/wikipedia/commons/c/cc/Uber_logo_2018.png" alt="" />
-        <form onSubmit={(e) => {
-          submitHandler(e)
-        }}>
+        <form onSubmit={handleSubmit}>
             <h3 className='text-lg font-medium mb-2'>What's your email</h3>
 
             <input
@@ -52,7 +63,8 @@ const UserLogin = () => {
              required
              className='bg-[#eeeeee] mb-7 px-4 py-2 rounded border w-full text-lg placeholder:text-base'
              type="email" 
-             placeholder='example@gmail.com' />
+             placeholder='example@gmail.com'
+             disabled={isLoading} />
 
             <h3 className='text-lg font-medium mb-2'>Enter Password</h3>
 
@@ -66,11 +78,31 @@ const UserLogin = () => {
             required 
             className='bg-[#eeeeee] mb-7 px-4 py-2 rounded border w-full text-lg placeholder:text-base'
             type="password"
-            placeholder='password' />
+            placeholder='password'
+            disabled={isLoading} />
+
+            {error && (
+                <div className="text-red-500 text-sm mb-4 text-center">
+                    {error}
+                </div>
+            )}
 
             <button
-            className='bg-[#111] text-white font-semibold mb-3 px-4 py-2 rounded w-full text-lg placeholder:text-base'
-            >Login</button>
+            type="submit"
+            className='bg-[#111] text-white font-semibold mb-3 px-4 py-2 rounded w-full text-lg placeholder:text-base disabled:opacity-50'
+            disabled={isLoading}
+            >
+                {isLoading ? 'Logging in...' : 'Login'}
+            </button>
+
+            <button
+            type="button"
+            onClick={handleGuestLogin}
+            className='bg-[#666] text-white font-semibold mb-3 px-4 py-2 rounded w-full text-lg placeholder:text-base disabled:opacity-50'
+            disabled={isLoading}
+            >
+                {isLoading ? 'Logging in...' : 'Login as Guest User'}
+            </button>
 
             <p className='text-center'>New here? <Link to='/signup' className='text-blue-600' >Create new Account</Link></p>
         </form>

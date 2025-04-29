@@ -12,31 +12,27 @@ const createRide = async (req, res) => {
         return res.status(400).json({ errors: errors.array() });
     }
 
-    const { userId, pickup, destination, vehicleType } = req.body;
+    const { userId, pickup, destination, vehicleType, scheduledTime } = req.body;
 
     try {
+        // Get coordinates for pickup and destination
+        const pickupCoordinates = await mapService.getAddressCoordinate(pickup);
+        const destinationCoordinates = await mapService.getAddressCoordinate(destination);
 
-       
+        const rideData = {
+            user: req.user._id,
+            pickup: `${pickupCoordinates.ltd},${pickupCoordinates.lng}`,
+            destination: `${destinationCoordinates.ltd},${destinationCoordinates.lng}`,
+            pickupAddress: pickup,
+            destinationAddress: destination,
+            vehicleType,
+            bookingTime: new Date(),
+            scheduledTime: scheduledTime ? new Date(scheduledTime) : null
+        };
 
-        const ride = await rideService.createRide({ user: req.user._id, pickup, destination, vehicleType });
+        const ride = await rideService.createRide(rideData);
         res.status(201).json(ride);
 
-        const pickupCoordinates = await mapService.getAddressCoordinate(pickup);
-
-        /*
-           // In your ride controller
-        console.log("Pickup coordinates:", pickupCoordinates);
-        
-        // Check if you have any captains
-        const allCaptains = await captainModel.find({});
-        console.log(`Total captains in database: ${allCaptains.length}`);
-        
-        // Check if any captains have location data
-        const captainsWithLocation = await captainModel.find({
-            'location.coordinates': { $exists: true }
-        });
-        console.log(`Captains with location data: ${captainsWithLocation.length}`);
-        */
         const captainsInRadius = await mapService.getCaptainsInTheRadius(pickupCoordinates.ltd, pickupCoordinates.lng, 100);
         console.log("Captains in radius:", captainsInRadius);
         
@@ -53,11 +49,9 @@ const createRide = async (req, res) => {
         })
 
     } catch (err) {
-
         console.log(err);
         return res.status(500).json({ message: err.message });
     }
-
 };
 
 const getFare = async(req,res)=>{
@@ -147,33 +141,53 @@ const endRide = async (req,res)=>{
  */
 const getActiveRideForUser = async (req, res) => {
     try {
-        const { userId } = req.params;
-        
-        // Find rides that are not completed
-        const ride = await rideModel.findOne({
+        const userId = req.user._id;
+        const activeRide = await rideModel.findOne({
             user: userId,
-            status: { $nin: ['completed', 'cancelled'] }
+            status: { $in: ['accepted', 'ongoing'] }
         }).populate('captain');
-        
-        if (!ride) {
-            return res.status(404).json({
-                success: false,
-                message: 'No active ride found'
-            });
+
+        if (!activeRide) {
+            return res.status(404).json({ message: 'No active ride found' });
         }
-        
-        return res.status(200).json({
-            success: true,
-            message: 'Active ride found',
-            ride
-        });
+
+        res.status(200).json({ ride: activeRide });
     } catch (error) {
         console.error('Error getting active ride:', error);
-        return res.status(500).json({
-            success: false,
-            message: 'Internal server error',
-            error: error.message
+        res.status(500).json({ message: 'Error getting active ride' });
+    }
+};
+
+const getRideHistory = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        
+        // Get all rides (completed, cancelled, ongoing, pending) sorted by booking time (newest first)
+        const rides = await rideModel.find({
+            user: userId,
+            status: { $in: ['completed', 'cancelled', 'ongoing', 'pending'] }
+        })
+        .sort({ bookingTime: -1 })
+        .populate({
+            path: 'captain',
+            select: 'fullname phone vehicle.color vehicle.plate vehicle.type'
+        })
+        .limit(20); // Limit to 20 most recent rides
+
+        // Map through rides to ensure proper status handling
+        const mappedRides = rides.map(ride => {
+            const rideObj = ride.toObject();
+            // If ride was cancelled by captain or user, ensure status is 'cancelled'
+            if (rideObj.status === 'pending' && rideObj.captain) {
+                rideObj.status = 'cancelled';
+            }
+            return rideObj;
         });
+        
+        res.status(200).json({ rides: mappedRides });
+    } catch (error) {
+        console.error('Error getting ride history:', error);
+        res.status(500).json({ message: 'Error getting ride history' });
     }
 };
 
@@ -183,5 +197,6 @@ module.exports = {
     confirmRide,
     startRide,
     endRide,
-    getActiveRideForUser
+    getActiveRideForUser,
+    getRideHistory
 };

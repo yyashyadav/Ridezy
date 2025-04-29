@@ -9,6 +9,7 @@ import { CaptainDataContext } from '../context/CaptainContext'
 import { SocketContext } from '../context/SocketContext'
 import axios from 'axios'
 import LiveTracking from '../../components/LiveTracking'
+import { getToken } from '../services/auth.service'
 
 const CaptainHome = () => {
   const [ridePopupPanel, setRidePopupPanel] = useState(false);
@@ -100,11 +101,22 @@ useGSAP(()=>{
 
   return (
     <div className='h-screen'>
-        <div className='fixed p-4 top-0 flex items-center justify-between w-screen'>
+        <div className='fixed p-4 top-0 flex items-center justify-between w-screen z-50'>
             <img className='w-16' src="https://cdn.worldvectorlogo.com/logos/uber-2.svg"/>
-            <Link to='/home' className='fixed right-2 top-2 h-10 w-10 bg-white flex items-center justify-center rounded-full'>
-            <i className="text-xl ri-logout-box-r-line"></i>
-            </Link>
+            <div className="flex items-center gap-2">
+                <Link 
+                    to='/captain-profile' 
+                    className='h-10 w-10 bg-white flex items-center justify-center rounded-full shadow-md hover:bg-gray-100 transition-colors'
+                >
+                    <i className="text-xl ri-user-line"></i>
+                </Link>
+                <Link 
+                    to='/captain/logout' 
+                    className='h-10 w-10 bg-white flex items-center justify-center rounded-full shadow-md hover:bg-gray-100 transition-colors'
+                >
+                    <i className="text-xl ri-logout-box-r-line"></i>
+                </Link>
+            </div>
         </div>
         <div className='h-3/5'>
             <LiveTracking rideData={null} />

@@ -7,6 +7,22 @@ const containerStyle = {
     height: '100%',
 };
 
+// Default center (Delhi)
+const DEFAULT_CENTER = { lat: 28.6139, lng: 77.2090 };
+
+// Helper function to validate coordinates
+const isValidCoordinate = (coord) => {
+    return coord && 
+           typeof coord.lat === 'number' && 
+           typeof coord.lng === 'number' && 
+           !isNaN(coord.lat) && 
+           !isNaN(coord.lng) &&
+           coord.lat >= -90 && 
+           coord.lat <= 90 && 
+           coord.lng >= -180 && 
+           coord.lng <= 180;
+};
+
 const LiveTracking = ({ rideData }) => {
     const [ currentPosition, setCurrentPosition ] = useState(null);
     const [ driverPosition, setDriverPosition ] = useState(null);
@@ -59,14 +75,14 @@ const LiveTracking = ({ rideData }) => {
 
     // Determine the center of the map
     const getMapCenter = () => {
-        if (driverPosition) {
+        if (driverPosition && isValidCoordinate(driverPosition)) {
             return driverPosition;
-        } else if (currentPosition) {
+        } else if (currentPosition && isValidCoordinate(currentPosition)) {
             return currentPosition;
-        } else if (rideData?.pickup) {
+        } else if (rideData?.pickup && isValidCoordinate(rideData.pickup)) {
             return rideData.pickup;
         } else {
-            return { lat: 28.6139, lng: 77.2090 }; // Default center (Delhi)
+            return DEFAULT_CENTER; // Default center (Delhi)
         }
     };
 
@@ -81,7 +97,7 @@ const LiveTracking = ({ rideData }) => {
             }}
         >
             {/* User's position marker */}
-            {currentPosition && (
+            {currentPosition && isValidCoordinate(currentPosition) && (
                 <Marker 
                     position={currentPosition} 
                     icon={{
@@ -92,7 +108,7 @@ const LiveTracking = ({ rideData }) => {
             )}
             
             {/* Driver's position marker */}
-            {driverPosition && (
+            {driverPosition && isValidCoordinate(driverPosition) && (
                 <Marker 
                     position={driverPosition} 
                     icon={{
@@ -103,7 +119,7 @@ const LiveTracking = ({ rideData }) => {
             )}
             
             {/* Pickup location marker */}
-            {rideData?.pickup && (
+            {rideData?.pickup && isValidCoordinate(rideData.pickup) && (
                 <Marker 
                     position={rideData.pickup} 
                     icon={{
@@ -114,7 +130,7 @@ const LiveTracking = ({ rideData }) => {
             )}
             
             {/* Destination marker */}
-            {rideData?.destination && (
+            {rideData?.destination && isValidCoordinate(rideData.destination) && (
                 <Marker 
                     position={rideData.destination} 
                     icon={{
