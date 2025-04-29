@@ -41,6 +41,30 @@ function initializeSocket(server){
             });
         });
 
+        // Handle driver location update for live tracking
+        socket.on('driver-location-update', (data) => {
+            const { rideId, location } = data;
+            
+            if (!rideId || !location || !location.latitude || !location.longitude) {
+                return socket.emit('error', { message: 'Invalid driver location data' });
+            }
+            
+            // Broadcast the driver location to all clients tracking this ride
+            io.emit(`driverLocation:${rideId}`, location);
+            console.log(`Driver location updated for ride ${rideId}:`, location);
+        });
+
+        // Handle clients joining a specific ride room
+        socket.on('join-ride', (data) => {
+            const { rideId } = data;
+            
+            if (!rideId) {
+                return socket.emit('error', { message: 'Invalid ride ID' });
+            }
+            
+            socket.join(`ride:${rideId}`);
+            console.log(`Client ${socket.id} joined ride room: ride:${rideId}`);
+        });
 
         socket.on("disconnect",()=>{
             console.log(`Client disconnected:${socket.id}`);
@@ -57,7 +81,17 @@ function sendMessageToSocketId(socketId,messageObject){
     }
 }
 
+// Function to broadcast driver location updates
+function broadcastDriverLocation(rideId, location) {
+    if (io) {
+        io.emit(`driverLocation:${rideId}`, location);
+    } else {
+        console.error("Socket.io not initialized");
+    }
+}
+
 module.exports={
     initializeSocket,
     sendMessageToSocketId,
+    broadcastDriverLocation
 };

@@ -12,6 +12,8 @@ import { SocketContext } from '../context/SocketContext';
 import { UserDataContext } from '../context/UserContext';
 import { useNavigate } from 'react-router-dom';
 import LiveTracking from '../../components/LiveTracking';
+import { GoogleMap } from '@react-google-maps/api';
+
 const Home = () => {
 
     const [ pickup, setPickup ] = useState('')
@@ -33,6 +35,8 @@ const Home = () => {
     const [ fare, setFare ] = useState({})
     const [ vehicleType, setVehicleType ] = useState(null)
     const [ ride, setRide ] = useState(null)
+    const [currentRide, setCurrentRide] = useState(null);
+    const [showLiveTracking, setShowLiveTracking] = useState(false);
 
     const navigate = useNavigate()
 
@@ -194,107 +198,195 @@ const Home = () => {
         console.log(response.data);
     }
 
-  return (
-    <div className='h-screen relative overflow-hidden'>
-    {/* <img className='w-16 absolute left-5 top-5 z-10' src="https://upload.wikimedia.org/wikipedia/commons/c/cc/Uber_logo_2018.png" alt="" /> */}
-    <div className='h-screen w-screen'>
-        <LiveTracking />
-    </div>
-    <div className='flex flex-col justify-end h-screen absolute top-0 w-full'>
-        <div className='h-[30%] p-6 bg-white relative'>
-            <h5 ref={panelCloseRef} onClick={() => {
-                setPanelOpen(false)
-            }} className='absolute opacity-0 right-6 top-6 text-2xl'>
-                <i className="ri-arrow-down-wide-line"></i>
-            </h5>
-            <h4 className='text-2xl font-semibold'>Find a trip</h4>
-            <form className='relative py-3' onSubmit={(e) => {
-                submitHandler(e)
-            }}>
-                <div className="line absolute h-16 w-1 top-[50%] -translate-y-1/2 left-5 bg-gray-700 rounded-full"></div>
-                <input
-                    onClick={() => {
-                        setPanelOpen(true)
-                        setActiveField('pickup')
-                        
-                    }}
-                    value={pickup}
-                    onChange={handlePickupChange}
-                    className='bg-[#eee] px-12 py-2 text-lg rounded-lg w-full'
-                    type="text"
-                    placeholder='Add a pick-up location'
-                />
-                <input
-                    onClick={() => {
-                        setPanelOpen(true)
-                        setActiveField('destination')
-                       
-                        
-                    }}
-                    value={destination}
-                    onChange={handleDestinationChange}
-                    className='bg-[#eee] px-12 py-2 text-lg rounded-lg w-full  mt-3'
-                    type="text"
-                    placeholder='Enter your destination' />
-            </form>
-            <button
-                onClick={findTrip}
-                className='bg-black text-white px-4 py-2 rounded-lg mt-3 w-full'>
-                Find Trip
-            </button>
+    // Check for active rides when component mounts
+    useEffect(() => {
+        if (user && user._id) {
+            // Fetch active rides for this user
+            axios.get(`${import.meta.env.VITE_BASE_URL}/rides/active/${user._id}`, {
+                headers: {
+                    Authorization: `Bearer ${localStorage.getItem('token')}`
+                }
+            })
+                .then(response => {
+                    if (response.data && response.data.ride) {
+                        const ride = response.data.ride;
+                        setCurrentRide({
+                            _id: ride._id,
+                            pickup: {
+                                lat: parseFloat(ride.pickup.split(',')[0]),
+                                lng: parseFloat(ride.pickup.split(',')[1])
+                            },
+                            destination: {
+                                lat: parseFloat(ride.destination.split(',')[0]),
+                                lng: parseFloat(ride.destination.split(',')[1])
+                            }
+                        });
+                        setShowLiveTracking(true);
+                    }
+                })
+                .catch(error => {
+                    // Only log as error if it's not a 404 (no active ride)
+                    if (error.response?.status !== 404) {
+                        console.error("Error fetching active rides:", error);
+                    }
+                });
+        }
+    }, [user]);
+
+    // Listen for ride status updates
+    useEffect(() => {
+        if (socket && currentRide?._id) {
+            socket.on(`ride-status:${currentRide._id}`, (status) => {
+                if (status === 'completed') {
+                    setShowLiveTracking(false);
+                    setCurrentRide(null);
+                }
+            });
+            
+            // Join the ride room for updates
+            socket.emit('join-ride', { rideId: currentRide._id });
+        }
+        
+        return () => {
+            if (socket && currentRide?._id) {
+                socket.off(`ride-status:${currentRide._id}`);
+            }
+        };
+    }, [socket, currentRide]);
+
+    return (
+        <div className='h-screen relative overflow-hidden'>
+            {/* Show live tracking if there's an active ride */}
+            {showLiveTracking && currentRide && (
+                <div className="fixed inset-0 z-30 bg-white">
+                    <div className="h-full">
+                        <LiveTracking rideData={currentRide} />
+                    </div>
+                    {/* Add a button to toggle between map and input fields */}
+                    <button 
+                        onClick={() => setShowLiveTracking(false)}
+                        className="fixed z-40 bottom-4 right-4 bg-blue-500 text-white p-4 rounded-full"
+                    >
+                        <i className="ri-arrow-down-line"></i>
+                    </button>
+                </div>
+            )}
+
+            {/* <img className='w-16 absolute left-5 top-5 z-10' src="https://upload.wikimedia.org/wikipedia/commons/c/cc/Uber_logo_2018.png" alt="" /> */}
+            <div className='h-screen w-screen'>
+                {/* Default map with no tracking data */}
+                <div className="h-full">
+                    <GoogleMap
+                        mapContainerStyle={{
+                            width: '100%',
+                            height: '100%'
+                        }}
+                        center={{ lat: 28.6139, lng: 77.2090 }}
+                        zoom={14}
+                        options={{ 
+                            disableDefaultUI: true,
+                            zoomControl: true
+                        }}
+                    >
+                        {/* No markers or routes */}
+                    </GoogleMap>
+                </div>
+            </div>
+            <div className='flex flex-col justify-end h-screen absolute top-0 w-full z-40'>
+                <div className=' h-[30%] p-6 bg-white relative'>
+                    <h5 ref={panelCloseRef} onClick={() => {
+                        setPanelOpen(false)
+                    }} className='absolute opacity-0 right-6 top-6 text-2xl'>
+                        <i className="ri-arrow-down-wide-line"></i>
+                    </h5>
+                    <h4 className='text-2xl font-semibold'>Find a trip</h4>
+                    <form className='relative py-3' onSubmit={(e) => {
+                        submitHandler(e)
+                    }}>
+                        <div className="line absolute h-16 w-1 top-[50%] -translate-y-1/2 left-5 bg-gray-700 rounded-full"></div>
+                        <input
+                            onClick={() => {
+                                setPanelOpen(true)
+                                setActiveField('pickup')
+                                
+                            }}
+                            value={pickup}
+                            onChange={handlePickupChange}
+                            className='bg-[#eee] px-12 py-2 text-lg rounded-lg w-full'
+                            type="text"
+                            placeholder='Add a pick-up location'
+                        />
+                        <input
+                            onClick={() => {
+                                setPanelOpen(true)
+                                setActiveField('destination')
+                               
+                                
+                            }}
+                            value={destination}
+                            onChange={handleDestinationChange}
+                            className='bg-[#eee] px-12 py-2 text-lg rounded-lg w-full  mt-3'
+                            type="text"
+                            placeholder='Enter your destination' />
+                    </form>
+                    <button
+                        onClick={findTrip}
+                        className='bg-black text-white px-4 py-2 rounded-lg mt-3 w-full'>
+                        Find Trip
+                    </button>
+                </div>
+                <div ref={panelRef} className='bg-white h-0'>
+                    <LocationSearchPanel
+                        suggestions={activeField === 'pickup' ? pickupSuggestions : destinationSuggestions}
+                        setPanelOpen={setPanelOpen}
+                        setVehiclePanel={setVehiclePanel}
+                        setPickup={setPickup}
+                        setDestination={setDestination}
+                        activeField={activeField}
+                    />
+                </div>
+            </div>
+            <div className="panels-container relative z-50">
+                <div ref={vehiclePanelRef} className='fixed w-full z-40 bottom-0 translate-y-full bg-white px-3 py-10 pt-12'>
+                    <VehiclePanel
+                        selectVehicle={setVehicleType}
+                        fare={fare} 
+                        setConfirmRidePanel={setConfirmRidePanel} 
+                        setVehiclePanel={setVehiclePanel} 
+                    />
+                </div>
+                <div ref={confirmRidePanelRef} className='fixed w-full hidden z-40 bottom-0 translate-y-full bg-white px-3 py-6  pt-12'>
+                    <ConfirmRide
+                        pickup={pickup}
+                        destination={destination}
+                        fare={fare}
+                        vehicleType={vehicleType}
+                        setConfirmRidePanel={setConfirmRidePanel} 
+                        setVehicleFound={setVehicleFound}
+                        createRide={createRide}
+                    />
+                </div>
+                <div ref={vehicleFoundRef} className='fixed w-full hidden z-40 bottom-0 translate-y-full bg-white px-3 py-6  pt-12'>
+                    <LookingForDriver
+                        createRide={createRide}
+                        pickup={pickup}
+                        destination={destination}
+                        fare={fare}
+                        vehicleType={vehicleType}
+                        setVehicleFound={setVehicleFound}
+                    />
+                </div>
+                <div ref={waitingForDriverRef} className='fixed w-full z-40 bottom-0 translate-y-full bg-white px-3 py-6 pt-12'>
+                    <WaitingForDriver
+                        ride={ride}
+                        setVehicleFound={setVehicleFound}
+                        setWaitingForDriver={setWaitingForDriver}
+                        waitingForDriver={waitingForDriver}
+                    />
+                </div>
+            </div>
         </div>
-        <div ref={panelRef} className='bg-white h-0'>
-            <LocationSearchPanel
-                suggestions={activeField === 'pickup' ? pickupSuggestions : destinationSuggestions}
-                setPanelOpen={setPanelOpen}
-                setVehiclePanel={setVehiclePanel}
-                setPickup={setPickup}
-                setDestination={setDestination}
-                activeField={activeField}
-            />
-        </div>
-    </div>
-    <div className="panels-container relative">
-        <div ref={vehiclePanelRef} className='fixed w-full z-40 bottom-0 translate-y-full bg-white px-3 py-10 pt-12'>
-            <VehiclePanel
-                selectVehicle={setVehicleType}
-                fare={fare} 
-                setConfirmRidePanel={setConfirmRidePanel} 
-                setVehiclePanel={setVehiclePanel} 
-            />
-        </div>
-        <div ref={confirmRidePanelRef} className='fixed w-full hidden z-40 bottom-0 translate-y-full bg-white px-3 py-6  pt-12'>
-            <ConfirmRide
-                pickup={pickup}
-                destination={destination}
-                fare={fare}
-                vehicleType={vehicleType}
-                setConfirmRidePanel={setConfirmRidePanel} 
-                setVehicleFound={setVehicleFound}
-                createRide={createRide}
-            />
-        </div>
-        <div ref={vehicleFoundRef} className='fixed w-full hidden z-40 bottom-0 translate-y-full bg-white px-3 py-6  pt-12'>
-            <LookingForDriver
-                createRide={createRide}
-                pickup={pickup}
-                destination={destination}
-                fare={fare}
-                vehicleType={vehicleType}
-                setVehicleFound={setVehicleFound}
-            />
-        </div>
-        <div ref={waitingForDriverRef} className='fixed w-full z-40 bottom-0 translate-y-full bg-white px-3 py-6 pt-12'>
-            <WaitingForDriver
-                ride={ride}
-                setVehicleFound={setVehicleFound}
-                setWaitingForDriver={setWaitingForDriver}
-                waitingForDriver={waitingForDriver}
-            />
-        </div>
-    </div>
-</div>
-  )
+    )
 }
 
 export default Home 

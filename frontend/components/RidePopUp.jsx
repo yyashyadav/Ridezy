@@ -14,30 +14,34 @@ const RidePopUp = (props) => {
                     <img className='h-12 w-10 rounded-full object-cover' src="https://st.depositphotos.com/1011643/4430/i/450/depositphotos_44309759-stock-photo-young-indian-man-outdoors.jpg" alt="" />
                     <h4 className='text-lg font-medium'>{props.ride?.user.fullname.firstname+" "+props.ride?.user.fullname.lastname}</h4>
                 </div> 
+
+
                 <h5 className='text-lg font-semibold'>2.2 KM</h5>
+                {/*
+                <h5 className='text-lg font-semibold'>{props.ride?.distance} KM</h5> */}
         </div>
 
         <div className='flex gap-2 justify-between flex-col items-center'>
             <div className='w-full mt-5'>
-                <div className='flex items-center gap-5 p-3 border-b-2 border-gray-200'>
-                    <i className="text-lg ri-map-pin-2-fill"></i>
+                <div className='flex items-center gap-5 px-1 py-3 border-b-2 border-gray-200'>
+                    <i className="ri-map-pin-2-fill text-3xl"></i>
                     <div>
-                        <h3 className='text-lg font-medium'>562/11-A</h3>
+                        <h3 className='text-lg font-semibold'>Pickup</h3>
                         <p className='text-gray-600 -mt-1 '>{props.ride?.pickup}</p>
                     </div>
                 </div>
-                <div className='flex items-center gap-5 p-3 border-b-2 border-gray-200'>
-                    <i className="text-lg ri-map-pin-2-fill"></i>
+                <div className='flex items-center gap-5 px-1 py-3 border-b-2 border-gray-200'>
+                    <i className="ri-map-pin-2-fill text-3xl"></i>
                     <div>
-                        <h3 className='text-lg font-medium'>562/11-A</h3>
+                        <h3 className='text-lg font-semibold'>Destination</h3>
                         <p className='text-gray-600 -mt-1'>{props.ride?.destination}</p>
                     </div>
                 </div>
-                <div className='flex items-center gap-5 p-3 '>
-                    <i className="ri-currency-line"></i>
+                <div className='flex items-center gap-5 px-1 py-3 '>
+                    <i className="ri-currency-line text-3xl"></i>
                     <div>
-                        <h3 className='text-lg font-medium'>₹{props.ride?.fare}</h3>
-                        <p className='text-gray-600 -mt-1'>Cash Cash</p>
+                        <h3 className='text-lg font-semibold'>₹{props.ride?.fare}</h3>
+                        <p className='text-gray-600 -mt-1'>Cash</p>
                     </div>
                 </div>
             </div>

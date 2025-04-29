@@ -107,7 +107,7 @@ useGSAP(()=>{
             </Link>
         </div>
         <div className='h-3/5'>
-            <LiveTracking/>
+            <LiveTracking rideData={null} />
         </div>
         <div className='h-2/5 p-6'>
             <CaptainDetails/>

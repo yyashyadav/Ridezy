@@ -6,7 +6,7 @@ const { sendMessageToSocketId } = require('../socket');
 const captainModel = require('../models/captain.model');
 
 
-module.exports.createRide = async (req, res) => {
+const createRide = async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
@@ -37,7 +37,7 @@ module.exports.createRide = async (req, res) => {
         });
         console.log(`Captains with location data: ${captainsWithLocation.length}`);
         */
-        const captainsInRadius = await mapService.getCaptainsInTheRadius(pickupCoordinates.ltd, pickupCoordinates.lng, 2);
+        const captainsInRadius = await mapService.getCaptainsInTheRadius(pickupCoordinates.ltd, pickupCoordinates.lng, 100);
         console.log("Captains in radius:", captainsInRadius);
         
         ride.otp="";
@@ -60,7 +60,7 @@ module.exports.createRide = async (req, res) => {
 
 };
 
-module.exports.getFare=async(req,res)=>{
+const getFare = async(req,res)=>{
     const errors=validationResult(req);
     if(!errors.isEmpty()){
         return res.status(400).json({errors:errors.array()});
@@ -74,7 +74,8 @@ module.exports.getFare=async(req,res)=>{
         return res.status(500).json({message:err.message});
     }
 }
-module.exports.confirmRide=async(req,res)=>{
+
+const confirmRide = async(req,res)=>{
     const errors=validationResult(req);
     if(!errors.isEmpty()){
         return res.status(400).json({errors:errors.array()});
@@ -93,7 +94,7 @@ module.exports.confirmRide=async(req,res)=>{
     }
 }
 
-module.exports.startRide=async (req,res)=>{
+const startRide = async (req,res)=>{
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
@@ -116,7 +117,7 @@ module.exports.startRide=async (req,res)=>{
     }
 }
 
-module.exports.endRide=async (req,res)=>{
+const endRide = async (req,res)=>{
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
@@ -137,3 +138,50 @@ module.exports.endRide=async (req,res)=>{
         return res.status(500).json({ message: err.message });
     }
 }
+
+/**
+ * Get active ride for a user
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Object} - Response with active ride or error
+ */
+const getActiveRideForUser = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        
+        // Find rides that are not completed
+        const ride = await rideModel.findOne({
+            user: userId,
+            status: { $nin: ['completed', 'cancelled'] }
+        }).populate('captain');
+        
+        if (!ride) {
+            return res.status(404).json({
+                success: false,
+                message: 'No active ride found'
+            });
+        }
+        
+        return res.status(200).json({
+            success: true,
+            message: 'Active ride found',
+            ride
+        });
+    } catch (error) {
+        console.error('Error getting active ride:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: error.message
+        });
+    }
+};
+
+module.exports = {
+    createRide,
+    getFare,
+    confirmRide,
+    startRide,
+    endRide,
+    getActiveRideForUser
+};
