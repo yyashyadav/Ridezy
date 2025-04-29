@@ -10,7 +10,16 @@ const captainRoutes=require('./routes/captain.routes')
 const mapRoutes=require('./routes/maps.routes');
 const rideRoute=require('./routes/ride.routes');
 
-app.use(cors());
+// Configure CORS using environment variables
+const corsOptions = {
+    origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : ['https://ridezy.vercel.app', 'http://localhost:5173'],
+    methods: process.env.CORS_METHODS ? process.env.CORS_METHODS.split(',') : ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: process.env.CORS_ALLOWED_HEADERS ? process.env.CORS_ALLOWED_HEADERS.split(',') : ['Content-Type', 'Authorization'],
+    credentials: process.env.CORS_CREDENTIALS === 'true'
+};
+
+app.use(cors(corsOptions));
+
 // this is for parsing 
 app.use(express.json());
 app.use(express.urlencoded({extended:true}))

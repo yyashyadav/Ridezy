@@ -5,13 +5,15 @@ const captainModel=require('./models/captain.model');
 let io;
 
 function initializeSocket(server){
+    const corsOptions = {
+        origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : ['https://ridezy.vercel.app', 'http://localhost:5173'],
+        methods: process.env.CORS_METHODS ? process.env.CORS_METHODS.split(',') : ['GET', 'POST'],
+        credentials: process.env.CORS_CREDENTIALS === 'true',
+        allowedHeaders: process.env.CORS_ALLOWED_HEADERS ? process.env.CORS_ALLOWED_HEADERS.split(',') : ['Content-Type', 'Authorization']
+    };
+
     io=socketIo(server,{
-        cors:{
-            origin: "http://localhost:5173", // Frontend URL
-            methods: ["GET", "POST"],
-            credentials: true,
-            allowedHeaders: ["Content-Type", "Authorization"]
-        },
+        cors: corsOptions
     });
     io.on("connection",(socket)=>{
         console.log(`Client connected:${socket.id}`);
