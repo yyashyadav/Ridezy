@@ -191,6 +191,29 @@ const getRideHistory = async (req, res) => {
     }
 };
 
+const getCaptainRideHistory = async (req, res) => {
+    try {
+        const captainId = req.captain._id;
+        
+        // Get all rides (completed, cancelled, ongoing) sorted by booking time (newest first)
+        const rides = await rideModel.find({
+            captain: captainId,
+            status: { $in: ['completed', 'cancelled', 'ongoing'] }
+        })
+        .sort({ bookingTime: -1 })
+        .populate({
+            path: 'user',
+            select: 'fullname phone'
+        })
+        .limit(20); // Limit to 20 most recent rides
+        
+        res.status(200).json({ rides });
+    } catch (error) {
+        console.error('Error getting captain ride history:', error);
+        res.status(500).json({ message: 'Error getting ride history' });
+    }
+};
+
 module.exports = {
     createRide,
     getFare,
@@ -198,5 +221,6 @@ module.exports = {
     startRide,
     endRide,
     getActiveRideForUser,
-    getRideHistory
+    getRideHistory,
+    getCaptainRideHistory
 };

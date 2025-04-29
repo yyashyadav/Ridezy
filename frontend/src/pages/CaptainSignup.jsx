@@ -43,7 +43,7 @@ const CaptainSignup = () => {
             console.log(response.data);
             setCaptain(data.captain);
             // this help for protected routing
-            localStorage.setItem('token',data.token);
+            localStorage.setItem('captainToken',data.token);
             navigate('/captain-home');
         }
         // console.log(userData);

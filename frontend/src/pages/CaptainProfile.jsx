@@ -16,25 +16,38 @@ const CaptainProfile = () => {
         // Fetch captain's ride history
         const fetchRideHistory = async () => {
             const token = localStorage.getItem('captainToken');
+            console.log('Captain Token:', token);
+            console.log('Captain Data:', captain);
+            
             if (!captain || !token) {
+                console.log('No captain or token found');
                 setLoading(false);
                 return;
             }
 
             try {
+                console.log('Making API request to:', `${import.meta.env.VITE_BASE_URL}/rides/captain/history`);
                 const response = await axios.get(`${import.meta.env.VITE_BASE_URL}/rides/captain/history`, {
                     headers: {
                         Authorization: `Bearer ${token}`
                     }
                 });
-                // Sort rides by date (newest first)
+                console.log('API Response:', response.data);
+                // Sort rides by booking time (newest first)
                 const sortedRides = response.data.rides.sort((a, b) => 
-                    new Date(b.createdAt) - new Date(a.createdAt)
+                    new Date(b.bookingTime) - new Date(a.bookingTime)
                 );
                 setRideHistory(sortedRides || []);
             } catch (error) {
-                console.error('Error fetching ride history:', error);
-                setError('Failed to load ride history');
+                console.error('Error fetching ride history:', error.response || error);
+                if (error.response && error.response.status === 404) {
+                    setError('Ride history endpoint not found. Please check if the backend server is running.');
+                } else if (error.response && error.response.status === 401) {
+                    setError('Authentication failed. Please log in again.');
+                    navigate('/captain-login');
+                } else {
+                    setError('Failed to load ride history. Please try again later.');
+                }
             } finally {
                 setLoading(false);
             }
@@ -187,46 +200,109 @@ const CaptainProfile = () => {
                             <div className="text-center py-4 text-red-500">{error}</div>
                         ) : rideHistory.length > 0 ? (
                             <div className="space-y-4">
-                                {rideHistory.map((ride) => (
-                                    <div key={ride._id} className="bg-gray-50 p-4 rounded-lg">
-                                        <div className="flex justify-between items-start mb-2">
-                                            <div>
-                                                <div className="font-medium">Ride #{ride._id.slice(-6)}</div>
-                                                <div className="text-sm text-gray-500">
-                                                    {formatDate(ride.createdAt)} at {formatTime(ride.createdAt)}
+                                {rideHistory.map((ride) => {
+                                    // Format booking time
+                                    const bookingDate = ride.bookingTime ? new Date(ride.bookingTime) : null;
+                                    const formattedBookingDate = bookingDate ? bookingDate.toLocaleDateString('en-US', {
+                                        weekday: 'short',
+                                        year: 'numeric',
+                                        month: 'short',
+                                        day: 'numeric'
+                                    }) : 'Not known';
+                                    const formattedBookingTime = bookingDate ? bookingDate.toLocaleTimeString('en-US', {
+                                        hour: '2-digit',
+                                        minute: '2-digit'
+                                    }) : 'Not known';
+
+                                    // Get status color and text
+                                    const getStatusInfo = (status) => {
+                                        switch (status) {
+                                            case 'completed':
+                                                return {
+                                                    color: 'bg-green-100 text-green-800',
+                                                    text: 'Completed'
+                                                };
+                                            case 'cancelled':
+                                                return {
+                                                    color: 'bg-red-100 text-red-800',
+                                                    text: 'Cancelled'
+                                                };
+                                            case 'ongoing':
+                                                return {
+                                                    color: 'bg-blue-100 text-blue-800',
+                                                    text: 'Ongoing'
+                                                };
+                                            case 'pending':
+                                                return {
+                                                    color: 'bg-yellow-100 text-yellow-800',
+                                                    text: 'Pending'
+                                                };
+                                            default:
+                                                return {
+                                                    color: 'bg-gray-100 text-gray-800',
+                                                    text: status.charAt(0).toUpperCase() + status.slice(1)
+                                                };
+                                        }
+                                    };
+
+                                    const statusInfo = getStatusInfo(ride.status);
+
+                                    return (
+                                        <div key={ride._id} className={`bg-white p-4 rounded-lg shadow-sm ${ride.status === 'cancelled' ? 'border border-red-200' : ''}`}>
+                                            <div className="flex justify-between items-start mb-3">
+                                                <div>
+                                                    <div className="text-sm text-gray-500">
+                                                        <span>Booked on: {formattedBookingDate}</span>
+                                                        <span className="ml-2">{formattedBookingTime}</span>
+                                                    </div>
                                                 </div>
+                                                <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusInfo.color}`}>
+                                                    {statusInfo.text}
+                                                </span>
                                             </div>
-                                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(ride.status)}`}>
-                                                {ride.status}
-                                            </span>
-                                        </div>
-                                        <div className="space-y-2">
-                                            <div className="flex justify-between text-sm">
-                                                <span className="text-gray-600">From</span>
-                                                <span className="font-medium">{ride.pickupAddress}</span>
-                                            </div>
-                                            <div className="flex justify-between text-sm">
-                                                <span className="text-gray-600">To</span>
-                                                <span className="font-medium">{ride.destinationAddress}</span>
-                                            </div>
-                                            {ride.fare && (
-                                                <div className="flex justify-between text-sm">
+                                            <div className="space-y-2">
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-600">From</span>
+                                                    <span className="font-medium">{ride.pickupAddress}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-600">To</span>
+                                                    <span className="font-medium">{ride.destinationAddress}</span>
+                                                </div>
+                                                <div className="flex justify-between">
                                                     <span className="text-gray-600">Fare</span>
                                                     <span className="font-medium">₹{ride.fare}</span>
                                                 </div>
-                                            )}
-                                            {ride.distance && (
-                                                <div className="flex justify-between text-sm text-gray-500">
-                                                    <span>Distance</span>
-                                                    <span>{(ride.distance / 1000).toFixed(1)} km</span>
+                                                {ride.duration && (
+                                                    <div className="flex justify-between text-sm text-gray-500">
+                                                        <span>Duration</span>
+                                                        <span>{Math.round(ride.duration / 60)} mins</span>
+                                                    </div>
+                                                )}
+                                                {ride.distance && (
+                                                    <div className="flex justify-between text-sm text-gray-500">
+                                                        <span>Distance</span>
+                                                        <span>{(ride.distance / 1000).toFixed(1)} km</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            {ride.user && (
+                                                <div className="mt-3 pt-3 border-t border-gray-100">
+                                                    <div className="text-sm font-medium text-gray-600 mb-1">User Details</div>
+                                                    <div className="text-sm">
+                                                        <span className="font-medium">{ride.user.fullname}</span>
+                                                        <span className="ml-2 text-gray-500">{ride.user.phone}</span>
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         ) : (
-                            <div className="text-center py-4 text-gray-500">No ride history available</div>
+                            <div className="text-center py-4 text-gray-500">
+                                No ride history available
+                            </div>
                         )}
                     </div>
                 )}

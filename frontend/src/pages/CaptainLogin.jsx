@@ -22,7 +22,7 @@ const CaptainLogin = () => {
         if(response.status==200){
             const data=response.data;
             setCaptain(data.captain);
-            localStorage.setItem('token', data.token)
+            localStorage.setItem('captainToken', data.token)
             navigate('/captain-home');
         }
         setEmail('');
@@ -42,7 +42,7 @@ const CaptainLogin = () => {
             if (response.status === 200) {
                 const data = response.data;
                 setCaptain(data.captain);
-                localStorage.setItem('token', data.token);
+                localStorage.setItem('captainToken', data.token);
                 navigate('/captain-home');
             }
         } catch (error) {
@@ -80,7 +80,7 @@ const CaptainLogin = () => {
                         if (loginResponse.status === 200) {
                             const data = loginResponse.data;
                             setCaptain(data.captain);
-                            localStorage.setItem('token', data.token);
+                            localStorage.setItem('captainToken', data.token);
                             navigate('/captain-home');
                         }
                     }
