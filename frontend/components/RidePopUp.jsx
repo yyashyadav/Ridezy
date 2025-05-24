@@ -11,14 +11,23 @@ const RidePopUp = (props) => {
 
         <div className='flex items-center justify-between bg-yellow-400 rounded-lg p-3'> 
                 <div className='flex items-center justify-start gap-3'>
-                    <img className='h-12 w-10 rounded-full object-cover' src="https://st.depositphotos.com/1011643/4430/i/450/depositphotos_44309759-stock-photo-young-indian-man-outdoors.jpg" alt="" />
+                    {props.ride?.user.profilePhoto ? (
+                        <img 
+                            className='h-12 w-12 rounded-full object-cover' 
+                            src={props.ride?.user.profilePhoto} 
+                            alt={`${props.ride?.user.fullname.firstname} ${props.ride?.user.fullname.lastname}`} 
+                        />
+                    ) : (
+                        <div className='h-12 w-12 bg-gray-300 rounded-full flex items-center justify-center text-lg font-bold text-gray-600'>
+                            {props.ride?.user.fullname.firstname?.charAt(0).toUpperCase() || 'U'}
+                        </div>
+                    )}
                     <h4 className='text-lg font-medium'>{props.ride?.user.fullname.firstname+" "+props.ride?.user.fullname.lastname}</h4>
                 </div> 
 
 
-                <h5 className='text-lg font-semibold'>2.2 KM</h5>
-                {/*
-                <h5 className='text-lg font-semibold'>{props.ride?.distance} KM</h5> */}
+                <h5 className='text-lg font-semibold'>{props.ride?.distance?.toFixed(1)} KM</h5>
+             
         </div>
 
         <div className='flex gap-2 justify-between flex-col items-center'>
@@ -27,14 +36,14 @@ const RidePopUp = (props) => {
                     <i className="ri-map-pin-2-fill text-3xl"></i>
                     <div>
                         <h3 className='text-lg font-semibold'>Pickup</h3>
-                        <p className='text-gray-600 -mt-1 '>{props.ride?.pickup}</p>
+                        <p className='text-sm -mt-1 text-gray-600'>{props.ride?.pickupAddress}</p>
                     </div>
                 </div>
                 <div className='flex items-center gap-5 px-1 py-3 border-b-2 border-gray-200'>
                     <i className="ri-map-pin-2-fill text-3xl"></i>
                     <div>
                         <h3 className='text-lg font-semibold'>Destination</h3>
-                        <p className='text-gray-600 -mt-1'>{props.ride?.destination}</p>
+                        <p className='text-sm -mt-1 text-gray-600'>{props.ride?.destinationAddress}</p>
                     </div>
                 </div>
                 <div className='flex items-center gap-5 px-1 py-3 '>

@@ -2,6 +2,7 @@ import React, { useEffect, useContext } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CaptainDataContext } from '../context/CaptainContext';
 import { captainLogout } from '../services/auth.service';
+import { toast } from 'react-toastify';
 
 const CaptainLogout = () => {
     const navigate = useNavigate();
@@ -12,9 +13,11 @@ const CaptainLogout = () => {
             try {
                 await captainLogout();
                 setCaptain(null);
+                toast.success('Logout successful');
                 navigate('/captain-login');
             } catch (error) {
                 console.error('Logout error:', error);
+                toast.error('Logout failed. Please try again.');
                 // Still navigate to login even if logout fails
                 setCaptain(null);
                 navigate('/captain-login');

@@ -25,7 +25,10 @@ function initializeSocket(server){
         if(userType==="user"){
             await userModel.findByIdAndUpdate(userId,{socketId:socket.id});
         }else if(userType==="captain"){
-            await captainModel.findByIdAndUpdate(userId,{socketId:socket.id});
+            await captainModel.findByIdAndUpdate(userId,{
+                socketId: socket.id,
+                status: 'active'
+            });
         }
        });
 
@@ -40,7 +43,8 @@ function initializeSocket(server){
                 location: {
                     type: 'Point',
                     coordinates: [location.lng, location.ltd]
-                }
+                },
+                status: 'active'
             });
         });
 
@@ -69,8 +73,91 @@ function initializeSocket(server){
             console.log(`Client ${socket.id} joined ride room: ride:${rideId}`);
         });
 
-        socket.on("disconnect",()=>{
+        // Handle ride requests with vehicle type matching
+        socket.on('request-ride', async (data) => {
+            const { rideId, pickup, destination, vehicleType } = data;
+            
+            if (!rideId || !pickup || !destination || !vehicleType) {
+                return socket.emit('error', { message: 'Invalid ride request data' });
+            }
+
+            try {
+                // Map 'moto' to 'motorcycle' for database query
+                const dbVehicleType = vehicleType === 'moto' ? 'motorcycle' : vehicleType;
+
+                // Find nearby captains with matching vehicle type
+                const nearbyCaptains = await captainModel.find({
+                    'location': {
+                        $near: {
+                            $geometry: {
+                                type: 'Point',
+                                coordinates: [pickup.lng, pickup.lat]
+                            },
+                            $maxDistance: 5000 // 5km radius
+                        }
+                    },
+                    'vehicle.vehicleType': dbVehicleType,
+                    isAvailable: true
+                }).limit(5);
+
+                if (nearbyCaptains.length === 0) {
+                    return socket.emit('no-captains-available', { 
+                        message: `No ${vehicleType} captains available nearby` 
+                    });
+                }
+
+                // Send ride request to all nearby captains
+                nearbyCaptains.forEach(captain => {
+                    if (captain.socketId) {
+                        io.to(captain.socketId).emit('new-ride-request', {
+                            rideId,
+                            pickup,
+                            destination,
+                            vehicleType
+                        });
+                    }
+                });
+
+                console.log(`Ride request sent to ${nearbyCaptains.length} ${vehicleType} captains for ride ${rideId}`);
+            } catch (error) {
+                console.error('Error finding nearby captains:', error);
+                socket.emit('error', { message: 'Error finding nearby captains' });
+            }
+        });
+
+        // Add new handler for ride acceptance
+        socket.on('ride-accepted', async (data) => {
+            const { rideId } = data;
+            
+            if (!rideId) {
+                return socket.emit('error', { message: 'Invalid ride ID' });
+            }
+
+            // Broadcast to all other captains that this ride is no longer available
+            socket.broadcast.emit('ride-no-longer-available', { rideId });
+        });
+
+        // Handle captain arrived event
+        socket.on('captain-arrived', (data) => {
+            console.log('Captain arrived:', data);
+            // Broadcast to all clients
+            io.emit('captain-arrived', data);
+        });
+
+        // Handle payment success event
+        socket.on('payment-success', (data) => {
+            console.log('Payment success received:', data);
+            // Broadcast to all clients
+            io.emit('payment-success', data);
+        });
+
+        socket.on("disconnect", async () => {
             console.log(`Client disconnected:${socket.id}`);
+            // Set captain status to inactive on disconnect
+            await captainModel.findOneAndUpdate(
+                { socketId: socket.id },
+                { status: 'inactive' }
+            );
         });
     });
 }

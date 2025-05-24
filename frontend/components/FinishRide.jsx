@@ -1,76 +1,101 @@
-import React from 'react'
+import React, { useContext, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom';
 import axios from 'axios'
 import { useNavigate } from 'react-router-dom'
+import { getToken } from '../src/services/auth.service';
+import { SocketContext } from '../src/context/SocketContext';
 
 const FinishRide = (props) => {
-
     const navigate = useNavigate();
+    const { socket } = useContext(SocketContext);
+    const [isWaitingForPayment, setIsWaitingForPayment] = useState(true);
 
-    async function endRide(){
-        const response = await axios.post(`${import.meta.env.VITE_BASE_URL}/rides/end-ride`, {
+    useEffect(() => {
+        if (socket && props.ride?._id) {
+            console.log('FinishRide: Setting up payment-success listener for ride:', props.ride._id);
+            
+            const handlePaymentSuccess = (data) => {
+                console.log('FinishRide: Payment success received:', data);
+                if (data.rideId === props.ride._id) {
+                    console.log('FinishRide: Payment confirmed for ride:', props.ride._id);
+                    setIsWaitingForPayment(false);
+                }
+            };
 
-            rideId: props.ride._id
+            // Add the listener
+            socket.on('payment-success', handlePaymentSuccess);
 
-        }, {
-            headers: {
-                Authorization: `Bearer ${localStorage.getItem('token')}`
-            }
-        })
+            return () => {
+                console.log('FinishRide: Cleaning up payment-success listener');
+                socket.off('payment-success', handlePaymentSuccess);
+            };
+        }
+    }, [socket, props.ride?._id]);
 
-        if (response.status === 200) {
-            navigate('/captain-home')
+    async function endRide() {
+        try {
+            // Since ride is already completed, just navigate to captain home
+            console.log('Navigating to captain home');
+                    
+                    // Emit socket event to notify user that ride is completed
+                    if (socket.connected) {
+                        socket.emit('ride-completed', { 
+                            rideId: props.ride._id, 
+                            userId: props.ride.user._id,
+                            status: 'completed'
+                        });
+                    }
+                    
+                    // Wait for socket event to be sent before navigating
+                    setTimeout(() => {
+                        navigate('/captain-home');
+                    }, 1000);
+            
+        } catch (error) {
+            console.error('Error in navigation:', error);
+            alert('Error navigating to home. Please try again.');
         }
     }
-  return (
-    <div>
-        <h5 className='p-3 text-center w-[93%] absolute top-0' 
-                onClick={()=>{
-                   props.setFinishRidePanel(false);
-            }}><i className=" text-2xl text-gray-300 ri-arrow-down-wide-fill"></i></h5>
-        <h3 className='text-2xl font-semibold mb-5'>Finish this Ride</h3>
 
-        <div className='flex items-center justify-between bg-yellow-400 rounded-lg p-3'> 
-                <div className='flex items-center justify-start gap-3'>
-                    <img className='h-12 w-10 rounded-full object-cover' src="https://st.depositphotos.com/1011643/4430/i/450/depositphotos_44309759-stock-photo-young-indian-man-outdoors.jpg" alt="" />
-                    <h4 className='text-lg font-medium'>{props.ride?.user.fullname.firstname}</h4>
-                </div> 
-                <h5 className='text-lg font-semibold'>2.2 KM</h5>
-        </div>
-
-        <div className='flex gap-2 justify-between flex-col items-center'>
-            <div className='w-full mt-5'>
-                <div className='flex items-center gap-5 px-1 py-3 border-b-2 border-gray-200'>
-                    <i className="ri-map-pin-2-fill text-3xl"></i>
-                    <div>
-                        <h3 className='text-lg font-semibold'>Pickup</h3>
-                        <p className='text-gray-600 -mt-1 '>{props.ride?.pickup}</p>
+    return (
+        <div className='bg-white p-4 rounded-t-3xl'>
+            <h5 className='p-1 text-center w-[93%] absolute top-0'><i className="text-3xl text-gray-200 ri-arrow-down-wide-line"></i></h5>
+            <h3 className='text-2xl font-semibold mb-5'>Ride Completed</h3>
+            <div className='flex gap-2 justify-between flex-col items-center'>
+                <div className='w-full mt-5'>
+                    <div className='flex items-center gap-5 px-1 py-3 border-b-2 border-gray-200'>
+                        <i className="ri-map-pin-2-fill text-3xl"></i>
+                        <div>
+                            <h3 className='text-lg font-semibold'>Pickup</h3>
+                            <p className='text-gray-600 -mt-1 '>{props.ride?.pickupAddress}</p>
+                        </div>
+                    </div>
+                    <div className='flex items-center gap-5 px-1 py-3 border-b-2 border-gray-200'>
+                        <i className="ri-map-pin-2-fill text-3xl"></i>
+                        <div>
+                            <h3 className='text-lg font-semibold'>Destination</h3>
+                            <p className='text-gray-600 -mt-1'>{props.ride?.destinationAddress}</p>
+                        </div>
+                    </div>
+                    <div className='flex items-center gap-5 px-1 py-3 '>
+                        <i className="ri-currency-line text-3xl"></i>
+                        <div>
+                            <h3 className='text-lg font-semibold'>₹{props.ride?.fare}</h3>
+                            <p className='text-gray-600 -mt-1'>Payment Received</p>
+                        </div>
                     </div>
                 </div>
-                <div className='flex items-center gap-5 px-1 py-3 border-b-2 border-gray-200'>
-                    <i className="ri-map-pin-2-fill text-3xl"></i>
-                    <div>
-                        <h3 className='text-lg font-semibold'>Destination</h3>
-                        <p className='text-gray-600 -mt-1'>{props.ride?.destination}</p>
-                    </div>
-                </div>
-                <div className='flex items-center gap-5 px-1 py-3 '>
-                    <i className="ri-currency-line text-3xl"></i>
-                    <div>
-                        <h3 className='text-lg font-semibold'>₹{props.ride?.fare}</h3>
-                        <p className='text-gray-600 -mt-1'>Cash</p>
-                    </div>
+                <div className='mt-10 w-full'>
+                    <button 
+                        onClick={endRide}
+                        className="w-full flex justify-center mt-5 font-semibold p-2 rounded-lg bg-green-600 text-white"
+                    >
+                        Complete Ride
+                    </button>
                 </div>
             </div>
-           
-           <div className='mt-10 w-full'>
-                <button 
-                onClick={endRide}
-                 className='w-full flex justify-center mt-5 bg-green-600 text-white font-semibold p-2 rounded-lg' >Complete Ride</button>
-           </div>
         </div>
-    </div>
-  )
-}
+    );
+};
 
-export default FinishRide
+export default FinishRide;
