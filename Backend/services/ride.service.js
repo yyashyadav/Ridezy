@@ -12,28 +12,45 @@ module.exports.getFare=async(pickup, destination)=>{
     const distanceTime = await mapService.getDistanceTime(pickup, destination);
 
     const baseFare = {
-        auto: 30,
         car: 50,
-        moto: 20
+        auto: 30,
+        motorcycle: 20,
+        moto: 20  // Add moto as alias for motorcycle
     };
 
     const perKmRate = {
+        car: 12,
         auto: 10,
-        car: 15,
-        moto: 8
+        motorcycle: 8,
+        moto: 8  // Add moto as alias for motorcycle
     };
 
     const perMinuteRate = {
-        auto: 2,
-        car: 3,
-        moto: 1.5
+        car: 2,
+        auto: 1.8,
+        motorcycle: 1.5,
+        moto: 1.5  // Add moto as alias for motorcycle
     };
 
+    const calculateFare = (distanceTime, vehicleType) => {
+        // Map 'moto' to 'motorcycle' for calculations
+        const type = vehicleType === 'moto' ? 'motorcycle' : vehicleType;
+        
+        if (type === 'car') {
+            return Math.round(baseFare.car + ((distanceTime.distance.value / 1000) * perKmRate.car) + ((distanceTime.duration.value / 60) * perMinuteRate.car));
+        } else if (type === 'auto') {
+            return Math.round(baseFare.auto + ((distanceTime.distance.value / 1000) * perKmRate.auto) + ((distanceTime.duration.value / 60) * perMinuteRate.auto));
+        } else if (type === 'motorcycle') {
+            return Math.round(baseFare.motorcycle + ((distanceTime.distance.value / 1000) * perKmRate.motorcycle) + ((distanceTime.duration.value / 60) * perMinuteRate.motorcycle));
+        }
+        return 0;
+    };
 
     const fare = {
-        auto: Math.round(baseFare.auto + ((distanceTime.distance.value / 1000) * perKmRate.auto) + ((distanceTime.duration.value / 60) * perMinuteRate.auto)),
-        car: Math.round(baseFare.car + ((distanceTime.distance.value / 1000) * perKmRate.car) + ((distanceTime.duration.value / 60) * perMinuteRate.car)),
-        moto: Math.round(baseFare.moto + ((distanceTime.distance.value / 1000) * perKmRate.moto) + ((distanceTime.duration.value / 60) * perMinuteRate.moto))
+        auto: calculateFare(distanceTime, 'auto'),
+        car: calculateFare(distanceTime, 'car'),
+        motorcycle: calculateFare(distanceTime, 'motorcycle'),
+        moto: calculateFare(distanceTime, 'moto')  // Add moto fare calculation
     };
 
     return fare;
@@ -53,6 +70,8 @@ module.exports.createRide = async ({ user, pickup, destination, vehicleType, pic
 
     try {
         const fare = await this.getFare(pickupAddress, destinationAddress);
+        const distanceTime = await mapService.getDistanceTime(pickupAddress, destinationAddress);
+        
         const ride = await rideModel.create({
             user,
             pickup,
@@ -62,6 +81,8 @@ module.exports.createRide = async ({ user, pickup, destination, vehicleType, pic
             vehicleType,
             otp: getOtp(6),
             fare: fare[vehicleType],
+            distance: distanceTime.distance.value / 1000, // Convert meters to kilometers
+            duration: distanceTime.duration.value / 60, // Convert seconds to minutes
             bookingTime: bookingTime || new Date(),
             scheduledTime
         });
@@ -129,6 +150,8 @@ module.exports.endRide = async ({ rideId, captain }) => {
         throw new Error('Ride id is required');
     }
 
+    console.log('Ending ride:', { rideId, captainId: captain._id });
+
     const ride = await rideModel.findOne({
         _id: rideId,
         captain: captain._id
@@ -142,11 +165,28 @@ module.exports.endRide = async ({ rideId, captain }) => {
         throw new Error('Ride not ongoing');
     }
 
-    await rideModel.findOneAndUpdate({
-        _id: rideId
-    }, {
-        status: 'completed'
-    })
+    // Update ride status
+    const updatedRide = await rideModel.findOneAndUpdate(
+        { _id: rideId },
+        { status: 'completed' },
+        { new: true }
+    ).populate('user').populate('captain');
 
-    return ride;
+    // Verify status was updated
+    if (updatedRide.status !== 'completed') {
+        console.error('Failed to update ride status:', {
+            rideId,
+            expectedStatus: 'completed',
+            actualStatus: updatedRide.status
+        });
+        throw new Error('Failed to update ride status');
+    }
+
+    console.log('Ride status updated successfully:', {
+        rideId: updatedRide._id,
+        status: updatedRide.status,
+        captainId: updatedRide.captain._id
+    });
+
+    return updatedRide;
 }

@@ -17,6 +17,9 @@ import CaptainRiding from './pages/CaptainRiding'
 import UserProfile from './pages/UserProfile'
 import Profile from './pages/Profile'
 import CaptainProfile from './pages/CaptainProfile'
+import PaymentSuccess from './pages/PaymentSuccess'
+import { ToastContainer } from 'react-toastify'
+import 'react-toastify/dist/ReactToastify.css'
 
 const App = () => {
 
@@ -24,8 +27,12 @@ const App = () => {
 //  console.log(ans);
 
   return (
-    <LoadScript googleMapsApiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY}>
+    <LoadScript 
+    googleMapsApiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY}
+    libraries={['geometry']}
+    >
       <div>
+      <ToastContainer position="top-center" autoClose={3000} />
         <Routes>
             <Route path='/' element={<Start/>}/>
             <Route path='/login' element={<UserLogin/>}/>
@@ -34,6 +41,7 @@ const App = () => {
             <Route path='/captain-signup' element={<CaptainSignup/>}/>
             <Route path='/riding' element={<Riding/>} />
             <Route path='/captain-riding' element={<CaptainRiding/>}/>
+            <Route path='/payment-success' element={<PaymentSuccess/>} />
             {/* from we navigate to the protected route  */}
             <Route path='/home' element={
               <UserProtectedWrapper>

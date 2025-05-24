@@ -41,9 +41,14 @@ const createRide = async (req, res) => {
         // Send response before notifying captains
         res.status(201).json(ride);
 
-        // Find and notify nearby captains
-        const captainsInRadius = await mapService.getCaptainsInTheRadius(pickupCoordinates.ltd, pickupCoordinates.lng, 100);
-        console.log("Captains in radius:", captainsInRadius);
+        // Find and notify nearby captains with matching vehicle type
+        const captainsInRadius = await mapService.getCaptainsInTheRadius(
+            pickupCoordinates.ltd, 
+            pickupCoordinates.lng, 
+            100, // radius in km
+            vehicleType // pass vehicle type to filter captains
+        );
+        console.log(`Found ${captainsInRadius.length} ${vehicleType} captains in radius`);
 
         if (ride) {
             const rideWithUser = await rideModel.findOne({ _id: ride._id }).populate('user');
@@ -158,6 +163,35 @@ const endRide = async (req,res)=>{
     }
 }
 
+const checkAndCancelOldPendingRides = async () => {
+    try {
+        const oneMinuteAgo = new Date(Date.now() - 60 * 1000); // 1 minute ago
+        
+        const oldPendingRides = await rideModel.find({
+            status: 'pending',
+            bookingTime: { $lt: oneMinuteAgo }
+        });
+
+        for (const ride of oldPendingRides) {
+            ride.status = 'cancelled';
+            await ride.save();
+            
+            // Notify user if they're connected
+            if (ride.user.socketId) {
+                sendMessageToSocketId(ride.user.socketId, {
+                    event: 'ride-cancelled',
+                    data: { rideId: ride._id, reason: 'No captain found within time limit' }
+                });
+            }
+        }
+
+        return oldPendingRides.length;
+    } catch (error) {
+        console.error('Error checking old pending rides:', error);
+        return 0;
+    }
+};
+
 /**
  * Get active ride for a user
  * @param {Object} req - Express request object
@@ -167,6 +201,10 @@ const endRide = async (req,res)=>{
 const getActiveRideForUser = async (req, res) => {
     try {
         const userId = req.user._id;
+        
+        // First check and cancel any old pending rides
+        await checkAndCancelOldPendingRides();
+        
         const activeRide = await rideModel.findOne({
             user: userId,
             status: { $in: ['accepted', 'ongoing'] }
@@ -216,6 +254,116 @@ const getRideHistory = async (req, res) => {
     }
 };
 
+const getCaptainRideHistory = async (req, res) => {
+    try {
+        const captainId = req.captain._id;
+        
+        // Get all rides for the captain sorted by booking time (newest first)
+        const rides = await rideModel.find({
+            captain: captainId,
+            status: { $in: ['completed', 'cancelled', 'ongoing', 'pending'] }
+        })
+        .sort({ bookingTime: -1 })
+        .populate({
+            path: 'user',
+            select: 'fullname phone'
+        })
+        .limit(20); // Limit to 20 most recent rides
+
+        res.status(200).json({ rides });
+    } catch (error) {
+        console.error('Error getting captain ride history:', error);
+        res.status(500).json({ message: 'Error getting ride history' });
+    }
+};
+
+const getCaptainDailyEarnings = async (req, res) => {
+    try {
+        const captainId = req.captain._id;
+        
+        // Get today's start and end time
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        // Get all completed rides for today
+        const rides = await rideModel.find({
+            captain: captainId,
+            status: 'completed',
+            updatedAt: {
+                $gte: today,
+                $lt: tomorrow
+            }
+        });
+
+        // Calculate total earnings
+        const totalEarnings = rides.reduce((sum, ride) => sum + ride.fare, 0);
+
+        console.log('Daily earnings query:', {
+            captainId,
+            today,
+            tomorrow,
+            rideCount: rides.length,
+            totalEarnings
+        });
+
+        res.status(200).json({ 
+            totalEarnings,
+            rideCount: rides.length
+        });
+    } catch (error) {
+        console.error('Error getting captain daily earnings:', error);
+        res.status(500).json({ message: 'Error getting daily earnings' });
+    }
+};
+
+const updateRideStatus = async (req, res) => {
+    try {
+        const { rideId, status } = req.body;
+        
+        const ride = await rideModel.findById(rideId);
+        if (!ride) {
+            return res.status(404).json({ message: 'Ride not found' });
+        }
+
+        // Only allow status updates for rides belonging to the user
+        if (ride.user.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ message: 'Not authorized to update this ride' });
+        }
+
+        ride.status = status;
+        await ride.save();
+
+        res.json({ message: 'Ride status updated successfully', ride });
+    } catch (error) {
+        console.error('Error updating ride status:', error);
+        res.status(500).json({ message: 'Error updating ride status' });
+    }
+};
+
+const getAvailableRides = async (req, res) => {
+    try {
+        const captainId = req.captain._id;
+        
+        // Get all pending rides that match the captain's vehicle type
+        const rides = await rideModel.find({
+            status: 'pending',
+            vehicleType: req.captain.vehicle.type
+        })
+        .populate({
+            path: 'user',
+            select: 'fullname phone'
+        })
+        .sort({ bookingTime: -1 });
+
+        res.status(200).json({ rides });
+    } catch (error) {
+        console.error('Error getting available rides:', error);
+        res.status(500).json({ message: 'Error getting available rides' });
+    }
+};
+
 module.exports = {
     createRide,
     getFare,
@@ -223,5 +371,10 @@ module.exports = {
     startRide,
     endRide,
     getActiveRideForUser,
-    getRideHistory
+    getRideHistory,
+    getCaptainRideHistory,
+    getCaptainDailyEarnings,
+    updateRideStatus,
+    checkAndCancelOldPendingRides,
+    getAvailableRides
 };

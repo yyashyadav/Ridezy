@@ -27,6 +27,10 @@ const captainSchema=new mongoose.Schema({
         required: true,
         select: false,
     },
+    profilePhoto: {
+        type: String,
+        default: null
+    },
     socketId: {
         type: String,
     },
@@ -51,7 +55,6 @@ const captainSchema=new mongoose.Schema({
         },
         capacity: {
             type: Number,
-            required: true,
             min: [ 1, 'Capacity must be at least 1' ],
         },
         vehicleType: {

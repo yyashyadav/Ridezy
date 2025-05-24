@@ -23,14 +23,14 @@ const WaitingForDriver = (props) => {
           <i className="ri-map-pin-user-fill text-3xl"></i>
           <div>
             <h3 className='text-lg font-semibold'>Pickup</h3>
-            <p className='text-sm -mt-1 text-gray-600'>{props.ride?.pickup}</p>
+            <p className='text-sm -mt-1 text-gray-600'>{props.ride?.pickupAddress}</p>
           </div>
         </div>
         <div className='flex items-center gap-5 px-1 py-3 border-b-2'>
           <i className="ri-map-pin-2-fill text-3xl"></i>
           <div>
             <h3 className='text-lg font-semibold'>Destination</h3>
-            <p className='text-sm -mt-1 text-gray-600'>{props.ride?.destination}</p>
+            <p className='text-sm -mt-1 text-gray-600'>{props.ride?.destinationAddress}</p>
           </div>
         </div>
         <div className='flex items-center gap-5 px-1 py-3'>

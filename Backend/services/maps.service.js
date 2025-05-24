@@ -131,15 +131,50 @@ module.exports.getAutoCompleteSuggestions = async (input) => {
   }
 }
 
-module.exports.getCaptainsInTheRadius = async (ltd, lng, radius) => {
+module.exports.getCaptainsInTheRadius = async (ltd, lng, radius, vehicleType) => {
+  // Map 'moto' to 'motorcycle' for database query
+  const dbVehicleType = vehicleType === 'moto' ? 'motorcycle' : vehicleType;
+
   // radius in km
-  const captains = await captainModel.find({
+  console.log('Searching for captains with params:', {
+    ltd,
+    lng,
+    radius,
+    vehicleType,
+    dbVehicleType
+  });
+
+  // First check all captains with matching vehicle type
+  const allCaptainsWithVehicle = await captainModel.find({
+    'vehicle.vehicleType': dbVehicleType
+  });
+  console.log('All captains with vehicle type:', allCaptainsWithVehicle.length);
+
+  // Then check captains in radius without vehicle type filter
+  const captainsInRadius = await captainModel.find({
     location: {
         $geoWithin: {
             $centerSphere: [ [ lng, ltd ], radius / 6371 ]
         }
     }
-});
+  });
+  console.log('All captains in radius:', captainsInRadius.length);
+  console.log('Captains in radius details:', JSON.stringify(captainsInRadius, null, 2));
+
+  // Now check with both filters
+  const captains = await captainModel.find({
+    location: {
+        $geoWithin: {
+            $centerSphere: [ [ lng, ltd ], radius / 6371 ]
+        }
+    },
+    'vehicle.vehicleType': dbVehicleType
+  });
+
+  console.log('Final filtered captains:', captains.length);
+  if (captains.length === 0) {
+    console.log('Sample captain data:', await captainModel.findOne());
+  }
 
   return captains;
 }

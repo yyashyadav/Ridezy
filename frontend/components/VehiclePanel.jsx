@@ -31,7 +31,7 @@ const VehiclePanel = (props) => {
                     <div className='ml-2 w-1/2'>
                         <h4 className='font-medium text-base'>Moto <span><i className="ri-user-3-fill"></i>1</span> </h4>
                         <h5 className='font-medium text-sm'>3 mins away</h5>
-                        <p className='font-normal text-xs text-gray-600'>Affordable mototrcycle rides</p>
+                        <p className='font-normal text-xs text-gray-600'>Affordable motorcycle rides</p>
                     </div>
                     <h2 className='text-lg font-semibold'>₹{props.fare.moto}</h2>
                 </div>

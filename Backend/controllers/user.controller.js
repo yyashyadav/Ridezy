@@ -4,6 +4,8 @@ const userService=require('../services/user.service');
 // this take the validation result 
 const {validationResult}=require('express-validator')
 const blackListTokenModel=require('../models/blacklistToken.model');
+const cloudinary = require('../config/cloudinary.config');
+const fs = require('fs');
 
 // this is the logic for registering thte user 
 const registerUser=async(req,res,next)=>{
@@ -141,10 +143,78 @@ const updateUserProfile = async (req, res) => {
     }
 };
 
+const uploadProfilePhoto = async (req, res, next) => {
+    try {
+        console.log('Upload request received:', req.file);
+        
+        if (!req.file) {
+            console.log('No file in request');
+            return res.status(400).json({ message: 'No file uploaded' });
+        }
+
+        // Validate file type
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
+        if (!allowedTypes.includes(req.file.mimetype)) {
+            fs.unlinkSync(req.file.path); // Delete the file
+            return res.status(400).json({ message: 'Invalid file type. Only JPEG, PNG, and JPG are allowed.' });
+        }
+
+        // Validate file size (max 5MB)
+        const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+        if (req.file.size > maxSize) {
+            fs.unlinkSync(req.file.path); // Delete the file
+            return res.status(400).json({ message: 'File size too large. Maximum size is 5MB.' });
+        }
+
+        console.log('Uploading to Cloudinary...');
+        // Upload to Cloudinary
+        const result = await cloudinary.uploader.upload(req.file.path, {
+            folder: 'user-profiles',
+            resource_type: 'auto'
+        });
+
+        console.log('Cloudinary upload successful:', result);
+
+        // Delete the temporary file after successful upload
+        fs.unlinkSync(req.file.path);
+
+        // Update user's profile photo
+        const user = await userModel.findByIdAndUpdate(
+            req.user._id,
+            { profilePhoto: result.secure_url },
+            { new: true }
+        );
+
+        console.log('User profile updated successfully');
+
+        res.status(200).json({
+            message: 'Profile photo uploaded successfully',
+            profilePhoto: user.profilePhoto
+        });
+    } catch (error) {
+        console.error('Error in uploadProfilePhoto:', error);
+        
+        // Clean up the temporary file if it exists
+        if (req.file && req.file.path) {
+            try {
+                fs.unlinkSync(req.file.path);
+            } catch (unlinkError) {
+                console.error('Error deleting temporary file:', unlinkError);
+            }
+        }
+        
+        res.status(500).json({ 
+            message: 'Error uploading profile photo',
+            error: error.message 
+        });
+    }
+};
+
 module.exports = {
     registerUser,
     userLogin,
     getUserProfile,
     logoutUser,
-    updateUserProfile
+    updateUserProfile,
+    uploadProfilePhoto
 };
